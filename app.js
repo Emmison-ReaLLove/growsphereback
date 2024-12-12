@@ -507,6 +507,43 @@ app.get("/dashboard-data", (req, res) => {
     });
   });
 });
+const path = require("path");
+
+app.get("/profile", (req, res) => {
+  if (!req.session.userId) {
+    return res.redirect("/signin");
+  }
+
+  // Serve the static HTML file
+  res.sendFile(path.join(__dirname, "public", "profile.html"));
+});
+
+// API to fetch user data
+app.get("/api/profile", (req, res) => {
+  if (!req.session.userId) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  const query = `
+    SELECT first_name, last_name, username, email, phone_number, country, active_package, coupon_code
+    FROM users
+    WHERE id = ?
+  `;
+
+  db.query(query, [req.session.userId], (err, results) => {
+    if (err) {
+      console.error("Error fetching profile data:", err);
+      return res.status(500).json({ error: "An error occurred while fetching profile data." });
+    }
+
+    if (results.length === 0) {
+      return res.status(404).json({ error: "User not found." });
+    }
+
+    res.json(results[0]);
+  });
+});
+
 app.get("/profile", (req, res) => {
   if (!req.session.userId) {
     return res.status(401).redirect("/signin");
