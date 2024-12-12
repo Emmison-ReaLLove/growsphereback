@@ -507,8 +507,6 @@ app.get("/dashboard-data", (req, res) => {
     });
   });
 });
-const path = require("path");
-
 app.get("/profile", (req, res) => {
   if (!req.session.userId) {
     return res.redirect("/signin");
