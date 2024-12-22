@@ -75,7 +75,7 @@ const corsOptions = {
 app.use(cors(corsOptions));
 
 app.set("view engine", "ejs");
-
+app.set('views', __dirname + '/views');
 // Database connection
 // Create a connection pool
 const db = mysql.createPool({
