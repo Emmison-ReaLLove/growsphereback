@@ -153,7 +153,22 @@ app.get("/signup", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "signup.html")); // Serve static HTML
 });
 
-app.post("/signup", async (req, res) => {
+app.post("/signup", [
+  check("first_name").notEmpty().withMessage("First name is required."),
+  check("last_name").notEmpty().withMessage("Last name is required."),
+  check("username").isAlphanumeric().withMessage("Username must be alphanumeric.").notEmpty(),
+  check("user_email").isEmail().withMessage("Valid email is required."),
+  check("user_phone").isMobilePhone().withMessage("Valid phone number is required."),
+  check("country").notEmpty().withMessage("Country is required."),
+  check("user_password").isLength({ min: 6 }).withMessage("Password must be at least 6 characters."),
+  check("confirm_password").custom((value, { req }) => value === req.body.user_password).withMessage("Passwords do not match."),
+  check("coupon").notEmpty().withMessage("Coupon code is required."),
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ success: false, errors: errors.array() });
+  }
+
   const {
     first_name,
     last_name,
@@ -162,23 +177,13 @@ app.post("/signup", async (req, res) => {
     user_phone,
     country,
     user_password,
-    confirm_password,
     coupon,
     active_package,
     terms,
   } = req.body;
 
-  // Input validation
   if (!terms) {
     return res.status(400).json({ success: false, message: "You must agree to the terms and conditions." });
-  }
-
-  if (!first_name || !last_name || !username || !user_email || !user_phone || !country || !user_password || !coupon) {
-    return res.status(400).json({ success: false, message: "All fields are required." });
-  }
-
-  if (user_password !== confirm_password) {
-    return res.status(400).json({ success: false, message: "Passwords do not match." });
   }
 
   let connection;
@@ -189,7 +194,7 @@ app.post("/signup", async (req, res) => {
 
     // Validate coupon
     const [couponResult] = await connection.query(
-      "SELECT * FROM couponcode WHERE coupon_code = ? AND is_used = 0 FOR UPDATE",
+      "SELECT * FROM coupons WHERE coupon_code = ? AND is_used = 0 FOR UPDATE",
       [coupon]
     );
     if (couponResult.length === 0) {
