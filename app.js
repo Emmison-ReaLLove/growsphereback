@@ -135,7 +135,7 @@ app.post('/validate-coupon', async (req, res) => {
 
   try {
     // Query to check coupon validity
-    const query = "SELECT * FROM coupons WHERE coupon_code = ? AND is_used = 0";
+    const query = "SELECT * FROM couponcode WHERE coupon_code = ? AND is_used = 0";
     const [results] = await db.query(query, [coupon.trim()]);
 
     if (results.length > 0) {
@@ -189,7 +189,7 @@ app.post("/signup", async (req, res) => {
 
     // Validate coupon
     const [couponResult] = await connection.query(
-      "SELECT * FROM coupons WHERE coupon_code = ? AND is_used = 0 FOR UPDATE",
+      "SELECT * FROM couponcode WHERE coupon_code = ? AND is_used = 0 FOR UPDATE",
       [coupon]
     );
     if (couponResult.length === 0) {
@@ -222,7 +222,7 @@ app.post("/signup", async (req, res) => {
     const newUserId = userResult.insertId;
 
     // Mark coupon as used
-    await connection.query("UPDATE coupons SET is_used = 1, used_at = NOW() WHERE coupon_code = ?", [coupon]);
+    await connection.query("UPDATE couponcode SET is_used = 1, used_at = NOW() WHERE coupon_code = ?", [coupon]);
 
     // Handle referral logic
     const referralUsername = req.query.ref || null;
@@ -1047,6 +1047,3 @@ app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
   }
 });
-
-
-
