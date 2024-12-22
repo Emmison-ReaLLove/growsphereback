@@ -182,10 +182,6 @@ app.post("/signup", [
     terms,
   } = req.body;
 
-  if (!terms) {
-    return res.status(400).json({ success: false, message: "You must agree to the terms and conditions." });
-  }
-
   let connection;
 
   try {
