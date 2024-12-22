@@ -149,20 +149,17 @@ app.post('/validate-coupon', async (req, res) => {
   }
 });
 
-app.get("/signup", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "signup.html")); // Serve static HTML
-});
-
 app.post("/signup", [
-  check("first_name").notEmpty().withMessage("First name is required."),
-  check("last_name").notEmpty().withMessage("Last name is required."),
-  check("username").isAlphanumeric().withMessage("Username must be alphanumeric.").notEmpty(),
-  check("user_email").isEmail().withMessage("Valid email is required."),
-  check("user_phone").isMobilePhone().withMessage("Valid phone number is required."),
-  check("country").notEmpty().withMessage("Country is required."),
+  check("first_name").trim().notEmpty().withMessage("First name is required."),
+  check("last_name").trim().notEmpty().withMessage("Last name is required."),
+  check("username").trim().isAlphanumeric().withMessage("Username must be alphanumeric.").notEmpty(),
+  check("user_email").trim().isEmail().withMessage("Valid email is required."),
+  check("user_phone").trim().isMobilePhone().withMessage("Valid phone number is required."),
+  check("country").trim().notEmpty().withMessage("Country is required."),
   check("user_password").isLength({ min: 6 }).withMessage("Password must be at least 6 characters."),
   check("confirm_password").custom((value, { req }) => value === req.body.user_password).withMessage("Passwords do not match."),
-  check("coupon").notEmpty().withMessage("Coupon code is required."),
+  check("coupon").trim().notEmpty().withMessage("Coupon code is required."),
+  check("active_package").isIn(["anchor-lite", "anchor-pro"]).withMessage("Invalid package selected."),
 ], async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -182,15 +179,18 @@ app.post("/signup", [
     terms,
   } = req.body;
 
-  let connection;
+  if (!terms) {
+    return res.status(400).json({ success: false, message: "You must agree to the terms and conditions." });
+  }
 
+  let connection;
   try {
     connection = await db.promise().getConnection();
     await connection.beginTransaction();
 
     // Validate coupon
     const [couponResult] = await connection.query(
-      "SELECT * FROM coupons WHERE coupon_code = ? AND is_used = 0 FOR UPDATE",
+      "SELECT * FROM couponcode WHERE coupon_code = ? AND is_used = 0 FOR UPDATE",
       [coupon]
     );
     if (couponResult.length === 0) {
@@ -202,48 +202,15 @@ app.post("/signup", [
 
     // Insert new user
     const [userResult] = await connection.query(
-      `
-      INSERT INTO users (first_name, last_name, username, email, phone_number, country, password_hash, coupon_code, active_package, terms_accepted)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `,
-      [
-        first_name,
-        last_name,
-        username,
-        user_email,
-        user_phone,
-        country,
-        hashedPassword,
-        coupon,
-        active_package,
-        terms,
-      ]
+      `INSERT INTO users (first_name, last_name, username, email, phone_number, country, password_hash, coupon_code, active_package, terms_accepted)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [first_name, last_name, username, user_email, user_phone, country, hashedPassword, coupon, active_package, terms]
     );
-
-    const newUserId = userResult.insertId;
 
     // Mark coupon as used
     await connection.query("UPDATE couponcode SET is_used = 1, used_at = NOW() WHERE coupon_code = ?", [coupon]);
-
-    // Handle referral logic
-    const referralUsername = req.query.ref || null;
-    if (referralUsername) {
-      const [referrer] = await connection.query("SELECT id FROM users WHERE username = ?", [referralUsername]);
-
-      if (referrer.length > 0) {
-        const referrerId = referrer[0].id;
-        await connection.query(
-          `
-          UPDATE users 
-          SET total_referrals = total_referrals + 1, todays_referrals = todays_referrals + 1, sale_commission = sale_commission + 7
-          WHERE id = ?
-        `,
-          [referrerId]
-        );
-      }
-    }
-
     await connection.commit();
+
     res.status(201).json({ success: true, message: "Signup successful!" });
   } catch (error) {
     if (connection) await connection.rollback();
