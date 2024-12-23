@@ -299,7 +299,7 @@ app.post("/signin", async (req, res) => {
   }
 
   try {
-    const [results] = await db.promise().query("SELECT * FROM users WHERE username = ?", [username]);
+    const [results] = await db.query("SELECT * FROM users WHERE username = ?", [username]);
 
     if (results.length === 0) {
       return res.status(400).json({ message: "Invalid username or password." });
