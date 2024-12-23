@@ -204,7 +204,7 @@ app.post(
       coupon,
       active_package,
     } = req.body;
-
+    console.log("Full Request Body:", req.body);
     let connection;
 
     try {
