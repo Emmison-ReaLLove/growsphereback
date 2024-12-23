@@ -148,17 +148,13 @@ app.post('/validate-coupon', async (req, res) => {
     return res.status(500).json({ success: false, message: "An error occurred during validation." });
   }
 });
-app.post('/signup', (req, res) => {
-  console.log('Headers:', req.headers);
-  console.log('Body:', req.body);
-  res.send('Check logs for request data');
-});
 
-const uploads = multer().none(); // Configure multer to parse form fields
+const uploads = multer(); // Multer for handling multipart/form-data
+
+app.use(uploads.none()); // Parse `multipart/form-data`
 
 app.post(
   "/signup",
-  uploads, // Use multer to handle multipart/form-data
   [
     check("first_name").trim().notEmpty().withMessage("First name is required."),
     check("last_name").trim().notEmpty().withMessage("Last name is required."),
@@ -185,7 +181,7 @@ app.post(
       .withMessage("You must agree to the terms and conditions."),
   ],
   async (req, res) => {
-    console.log("Request Body:", req.body); // Debug: Check if body is parsed
+    console.log("Request Body:", req.body); // Debug: Log received body
     const errors = validationResult(req);
 
     // Handle validation errors
@@ -270,6 +266,11 @@ app.post(
     }
   }
 );
+app.post('/signup', (req, res) => {
+  console.log('Headers:', req.headers);
+  console.log('Body:', req.body);
+  res.send('Check logs for request data');
+});
 
 // Middleware for authenticated routes
 function isAuthenticated(req, res, next) {
