@@ -179,10 +179,7 @@ app.post("/signup", [
     terms,
   } = req.body;
 
-   // Transform the "terms" field
-  const termsAccepted = terms === "on" ? 1 : 0;
-
-  if (!termsAccepted) {
+  if (!terms) {
     return res.status(400).json({ success: false, message: "You must agree to the terms and conditions." });
   }
   let connection;
@@ -208,7 +205,7 @@ app.post("/signup", [
     const [userResult] = await connection.query(
       `INSERT INTO users (first_name, last_name, username, email, phone_number, country, password_hash, coupon_code, active_package, terms_accepted)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [first_name, last_name, username, user_email, user_phone, country, hashedPassword, coupon, active_package, termsAccepted]
+      [first_name, last_name, username, user_email, user_phone, country, hashedPassword, coupon, active_package, terms]
     );
 
     // Mark coupon as used
