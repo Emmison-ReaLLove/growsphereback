@@ -148,80 +148,124 @@ app.post('/validate-coupon', async (req, res) => {
     return res.status(500).json({ success: false, message: "An error occurred during validation." });
   }
 });
+app.post('/signup', (req, res) => {
+  console.log('Headers:', req.headers);
+  console.log('Body:', req.body);
+  res.send('Check logs for request data');
+});
 
-app.post("/signup", [
-  check("first_name").trim().notEmpty().withMessage("First name is required."),
-  check("last_name").trim().notEmpty().withMessage("Last name is required."),
-  check("username").trim().isAlphanumeric().withMessage("Username must be alphanumeric.").notEmpty(),
-  check("user_email").trim().isEmail().withMessage("Valid email is required."),
-  check("user_phone").trim().isMobilePhone().withMessage("Valid phone number is required."),
-  check("country").trim().notEmpty().withMessage("Country is required."),
-  check("user_password").isLength({ min: 6 }).withMessage("Password must be at least 6 characters."),
-  check("coupon").trim().notEmpty().withMessage("Coupon code is required."),
-  check("active_package").isIn(["anchor-lite", "anchor-pro"]).withMessage("Invalid package selected."),
-  check("terms").equals("on").withMessage("You must agree to the terms and conditions."),
-  console.log(req.body)
-], async (req, res) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({ success: false, errors: errors.array() });
-  }
+const uploads = multer(); // Multer for parsing multipart/form-data
 
-  const {
-    first_name,
-    last_name,
-    username,
-    user_email,
-    user_phone,
-    country,
-    user_password,
-    coupon,
-    active_package,
-    terms,
-  } = req.body;
+app.post(
+  "/signup",
+  uploads.none(), // Parse multipart/form-data
+  [
+    check("first_name").trim().notEmpty().withMessage("First name is required."),
+    check("last_name").trim().notEmpty().withMessage("Last name is required."),
+    check("username")
+      .trim()
+      .isAlphanumeric()
+      .withMessage("Username must be alphanumeric.")
+      .notEmpty(),
+    check("user_email").trim().isEmail().withMessage("Valid email is required."),
+    check("user_phone")
+      .trim()
+      .isMobilePhone()
+      .withMessage("Valid phone number is required."),
+    check("country").trim().notEmpty().withMessage("Country is required."),
+    check("user_password")
+      .isLength({ min: 5 })
+      .withMessage("Password must be at least 5 characters."),
+    check("coupon").trim().notEmpty().withMessage("Coupon code is required."),
+    check("active_package")
+      .isIn(["anchor-lite", "anchor-pro"])
+      .withMessage("Invalid package selected."),
+    check("terms").equals("1").withMessage("You must agree to the terms and conditions."),
+  ],
+  async (req, res) => {
+    const errors = validationResult(req);
 
-  if (!terms) {
-    return res.status(400).json({ success: false, message: "You must agree to the terms and conditions." });
-  }
-  let connection;
-  try {
-    connection = await db.promise().getConnection();
-    await connection.beginTransaction();
-
-    // Validate coupon
-    const [couponResult] = await connection.query(
-      "SELECT * FROM couponcode WHERE coupon_code = ? AND is_used = 0 FOR UPDATE",
-      [coupon]
-    );
-    if (couponResult.length === 0) {
-      throw new Error("Invalid or already used coupon code.");
-       showTemporaryMessage("Invalid or already used coupon code.","warning");
+    // Handle validation errors
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        errors: errors.array(),
+      });
     }
 
-    // Hash password
-    const hashedPassword = user_password;
-    showTemporaryMessage("Password Hashed","success")
+    const {
+      first_name,
+      last_name,
+      username,
+      user_email,
+      user_phone,
+      country,
+      user_password,
+      coupon,
+      active_package,
+    } = req.body;
 
-    // Insert new user
-    const [userResult] = await connection.query(
-      `INSERT INTO users (first_name, last_name, username, email, phone_number, country, password_hash, coupon_code, active_package, terms_accepted)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [first_name, last_name, username, user_email, user_phone, country, hashedPassword, coupon, active_package, terms]
-    );
+    let connection;
 
-    // Mark coupon as used
-    await connection.query("UPDATE couponcode SET is_used = 1, used_at = NOW() WHERE coupon_code = ?", [coupon]);
-    await connection.commit();
+    try {
+      connection = await db.promise().getConnection();
+      await connection.beginTransaction();
 
-    res.status(201).json({ success: true, message: "Signup successful!" });
-  } catch (error) {
-    if (connection) await connection.rollback();
-    console.error("Error during signup:", error);
-    res.status(500).json({ success: false, message: error.message || "An error occurred during signup." });
-  } finally {
-    if (connection) connection.release();
+      // Validate coupon
+      const [couponResult] = await connection.query(
+        "SELECT * FROM couponcode WHERE coupon_code = ? AND is_used = 0 FOR UPDATE",
+        [coupon]
+      );
+      if (couponResult.length === 0) {
+        throw new Error("Invalid or already used coupon code.");
+      }
+
+      // Hash password
+      const hashedPassword = await bcrypt.hash(user_password, 10);
+
+      // Insert new user
+      const [userResult] = await connection.query(
+        `INSERT INTO users (first_name, last_name, username, email, phone_number, country, password_hash, coupon_code, active_package, terms_accepted)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          first_name,
+          last_name,
+          username,
+          user_email,
+          user_phone,
+          country,
+          hashedPassword,
+          coupon,
+          active_package,
+          true, // terms_accepted
+        ]
+      );
+
+      // Mark coupon as used
+      await connection.query(
+        "UPDATE couponcode SET is_used = 1, used_at = NOW() WHERE coupon_code = ?",
+        [coupon]
+      );
+
+      await connection.commit();
+
+      // Respond with success
+      res.status(201).json({
+        success: true,
+        message: "Signup successful!",
+      });
+    } catch (error) {
+      if (connection) await connection.rollback();
+      console.error("Error during signup:", error.message);
+      res.status(500).json({
+        success: false,
+        message: error.message || "An error occurred during signup.",
+      });
+    } finally {
+      if (connection) connection.release();
+    }
   }
-});
+);
 
 // Middleware for authenticated routes
 function isAuthenticated(req, res, next) {
