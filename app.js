@@ -157,7 +157,6 @@ app.post("/signup", [
   check("user_phone").trim().isMobilePhone().withMessage("Valid phone number is required."),
   check("country").trim().notEmpty().withMessage("Country is required."),
   check("user_password").isLength({ min: 6 }).withMessage("Password must be at least 6 characters."),
-  check("confirm_password").custom((value, { req }) => value === req.body.user_password).withMessage("Passwords do not match."),
   check("coupon").trim().notEmpty().withMessage("Coupon code is required."),
   check("active_package").isIn(["anchor-lite", "anchor-pro"]).withMessage("Invalid package selected."),
 ], async (req, res) => {
