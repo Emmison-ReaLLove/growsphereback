@@ -154,11 +154,11 @@ app.post('/signup', (req, res) => {
   res.send('Check logs for request data');
 });
 
-const uploads = multer(); // Multer for parsing multipart/form-data
+const uploads = multer().none(); // Configure multer to parse form fields
 
 app.post(
   "/signup",
-  uploads.none(), // Parse multipart/form-data
+  uploads, // Use multer to handle multipart/form-data
   [
     check("first_name").trim().notEmpty().withMessage("First name is required."),
     check("last_name").trim().notEmpty().withMessage("Last name is required."),
@@ -180,13 +180,17 @@ app.post(
     check("active_package")
       .isIn(["anchor-lite", "anchor-pro"])
       .withMessage("Invalid package selected."),
-    check("terms").equals("1").withMessage("You must agree to the terms and conditions."),
+    check("terms")
+      .custom((value) => value === "1" || value === "on")
+      .withMessage("You must agree to the terms and conditions."),
   ],
   async (req, res) => {
+    console.log("Request Body:", req.body); // Debug: Check if body is parsed
     const errors = validationResult(req);
 
     // Handle validation errors
     if (!errors.isEmpty()) {
+      console.log("Validation Errors:", errors.array());
       return res.status(400).json({
         success: false,
         errors: errors.array(),
