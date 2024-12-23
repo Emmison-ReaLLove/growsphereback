@@ -159,6 +159,7 @@ app.post("/signup", [
   check("user_password").isLength({ min: 6 }).withMessage("Password must be at least 6 characters."),
   check("coupon").trim().notEmpty().withMessage("Coupon code is required."),
   check("active_package").isIn(["anchor-lite", "anchor-pro"]).withMessage("Invalid package selected."),
+  check("terms").equals("on").withMessage("You must agree to the terms and conditions."),
 ], async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -178,11 +179,12 @@ app.post("/signup", [
     terms,
   } = req.body;
 
-  if (!terms) {
-    return res.status(400).json({ success: false, message: "You must agree to the terms and conditions." });
-    showTemporaryMessage("You must agree to the terms and conditions.","warning");
-  }
+   // Transform the "terms" field
+  const termsAccepted = terms === "on" ? 1 : 0;
 
+  if (!termsAccepted) {
+    return res.status(400).json({ success: false, message: "You must agree to the terms and conditions." });
+  }
   let connection;
   try {
     connection = await db.promise().getConnection();
@@ -199,14 +201,14 @@ app.post("/signup", [
     }
 
     // Hash password
-    const hashedPassword = await bcrypt.hash(user_password, 10);
+    const hashedPassword = user_password;
     showTemporaryMessage("Password Hashed","success")
 
     // Insert new user
     const [userResult] = await connection.query(
       `INSERT INTO users (first_name, last_name, username, email, phone_number, country, password_hash, coupon_code, active_package, terms_accepted)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [first_name, last_name, username, user_email, user_phone, country, hashedPassword, coupon, active_package, terms]
+      [first_name, last_name, username, user_email, user_phone, country, hashedPassword, coupon, active_package, termsAccepted]
     );
 
     // Mark coupon as used
