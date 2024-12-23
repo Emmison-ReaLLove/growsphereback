@@ -181,6 +181,7 @@ app.post("/signup", [
 
   if (!terms) {
     return res.status(400).json({ success: false, message: "You must agree to the terms and conditions." });
+    showTemporaryMessage("You must agree to the terms and conditions.","warning");
   }
 
   let connection;
@@ -195,10 +196,12 @@ app.post("/signup", [
     );
     if (couponResult.length === 0) {
       throw new Error("Invalid or already used coupon code.");
+       showTemporaryMessage("Invalid or already used coupon code.","warning");
     }
 
     // Hash password
     const hashedPassword = await bcrypt.hash(user_password, 10);
+    showTemporaryMessage("Password Hashed","success")
 
     // Insert new user
     const [userResult] = await connection.query(
@@ -997,7 +1000,7 @@ router.get("/get-comments/:itemId", async (req, res) => {
 });
 
 module.exports = router;
-
+function showTemporaryMessage(message, type) { let messageContainer = document.getElementById("message-container");if (!messageContainer) {messageContainer = document.createElement("div");messageContainer.id = "message-container"; messageContainer.style.position = "fixed"; messageContainer.style.top = "10px"; messageContainer.style.right = "10px"; messageContainer.style.zIndex = "1000";document.body.appendChild(messageContainer);}const messageElement = document.createElement("div");messageElement.textContent = message;messageElement.style.padding = "10px 20px";messageElement.style.margin = "5px";messageElement.style.borderRadius = "5px";messageElement.style.color = "white";messageElement.style.fontWeight = "bold";messageElement.style.opacity = "1";messageElement.style.transition = "opacity 0.5s ease"; if (type === "success") { messageElement.style.backgroundColor = "#4caf50"; } else if (type === "warning") { messageElement.style.backgroundColor = "#f44336";   } messageContainer.appendChild(messageElement);setTimeout(() => { messageElement.style.opacity = "0"; setTimeout(() => {    messageContainer.removeChild(messageElement); }, 500);}, 4000);}
 // Custom error handling
 app.use((req, res) => {
   res.status(404).render("404");
