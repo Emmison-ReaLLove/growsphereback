@@ -160,6 +160,7 @@ app.post("/signup", [
   check("coupon").trim().notEmpty().withMessage("Coupon code is required."),
   check("active_package").isIn(["anchor-lite", "anchor-pro"]).withMessage("Invalid package selected."),
   check("terms").equals("on").withMessage("You must agree to the terms and conditions."),
+  console.log(req.body)
 ], async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
